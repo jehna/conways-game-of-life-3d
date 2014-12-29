@@ -11,8 +11,8 @@
 <script>
 
 	// set the scene size
-	var WIDTH = 400,
-	    HEIGHT = 300;
+	var WIDTH = 800,
+	    HEIGHT = 600;
 
 	// set some camera attributes
 	var VIEW_ANGLE = 45,
@@ -34,7 +34,7 @@
 	var scene = new THREE.Scene();
 
 	// the camera starts at 0,0,0 so pull it back
-	camera.position.z = 100;
+	camera.position.z = 50;
 
 	// start the renderer
 	renderer.setSize(WIDTH, HEIGHT);
@@ -47,7 +47,7 @@
 	{
 	    color: 0xCC0000,
             transparent: true,
-            opacity: 0.8
+            opacity: 0.5
 	});
         //sphereMaterial.opacity = 0.5;
         
@@ -78,7 +78,7 @@
         
         
         // create the world
-        var SIDE = 20;
+        var SIDE = 100;
         var world = {
             height: SIDE,
             width: SIDE,
@@ -113,7 +113,7 @@
         
         // initialize world
         world.map(function() {
-            return (Math.random() >= 0.9);
+            return (Math.random() >= 0.99);
         });
         
         world.__cubes = [];
