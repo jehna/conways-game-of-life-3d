@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game of death</title>
+    <script type="text/javascript" src="js/three.min.js"></script>
+</head>
+
+<body>
+<div id="container"></div>
+
+<script>
+
+	// set the scene size
+	var WIDTH = 400,
+	    HEIGHT = 300;
+
+	// set some camera attributes
+	var VIEW_ANGLE = 45,
+	    ASPECT = WIDTH / HEIGHT,
+	    NEAR = 0.1,
+	    FAR = 10000;
+
+	// get the DOM element to attach to
+	// - assume we've got jQuery to hand
+	var $container = document.getElementById('container');
+
+	// create a WebGL renderer, camera
+	// and a scene
+	var renderer = new THREE.WebGLRenderer();
+	var camera = new THREE.PerspectiveCamera(  VIEW_ANGLE,
+	                                ASPECT,
+	                                NEAR,
+	                                FAR  );
+	var scene = new THREE.Scene();
+
+	// the camera starts at 0,0,0 so pull it back
+	camera.position.z = 100;
+
+	// start the renderer
+	renderer.setSize(WIDTH, HEIGHT);
+
+	// attach the render-supplied DOM element
+	$container.appendChild(renderer.domElement);
+
+	// create the sphere's material
+	var sphereMaterial = new THREE.MeshLambertMaterial(
+	{
+	    color: 0xCC0000,
+            transparent: true,
+            opacity: 0.8
+	});
+        //sphereMaterial.opacity = 0.5;
+        
+        // and the camera
+	scene.add(camera);
+        
+        // create a point light
+	var pointLight = new THREE.PointLight( 0xFFFFFF );
+
+	// set its position
+	pointLight.position.x = 10;
+	pointLight.position.y = 50;
+	pointLight.position.z = 130;
+
+	// add to the scene
+	scene.add(pointLight);
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        // create the world
+        var SIDE = 20;
+        var world = {
+            height: SIDE,
+            width: SIDE,
+            depth: SIDE,
+            data: []
+        };
+        
+        world.each = function(func) {
+            for(var x = 0; x < world.width; x++) {
+                world.data[x] = world.data[x] || [];
+                for(var y = 0; y < world.height; y++) {
+                    world.data[x][y] = world.data[x][y] || [];
+                    for(var z = 0; z < world.depth; z++) {
+                        func(world.data[x][y][z], x, y, z);
+                    }
+                }
+            }
+        }
+        world.map = function(func) {
+            return world.each(function(data, x, y, z) {
+                world.data[x][y][z] = func(data, x, y, z);
+            })
+        }
+        world.g = function(x,y,z) {
+            if (x<0 || x >= world.width  ||
+                y<0 || y >= world.height ||
+                x<0 || z >= world.depth  ) {
+                return false;
+            }
+            return world.data[x][y][z];
+        }
+        
+        // initialize world
+        world.map(function() {
+            return (Math.random() >= 0.9);
+        });
+        
+        world.__cubes = [];
+        world.render = function() {
+            var i = 0;
+            world.each(function(data,x,y,z) {
+                if (data === true) {
+                    // recycle cubes
+                    var cube = world.__cubes[i];
+                    
+                    if(!cube) {
+                        cube = new THREE.Mesh(
+                            new THREE.BoxGeometry( 1, 1, 1 ),
+                            sphereMaterial
+                        );
+                        scene.add(cube);
+                        world.__cubes[i] = cube;
+                    }
+                    
+                    cube.position.x = x - world.width/2;
+                    cube.position.y = y - world.height/2;
+                    cube.position.z = z - world.depth/2;
+                    
+                    i++;
+                }
+            });
+            
+            for(;i<world.__cubes.length;i++) {
+                world.__cubes[i].x = -10000000;
+            }
+            
+            // draw!
+            renderer.render(scene, camera);
+        }
+        
+        world.step = function() {
+            world.map(function(val,xpos,ypos,zpos) {
+                var num_alive = 0;
+                for(var x = -1; x <= 1; x++) {
+                    for(var y = -1; y <= 1; y++) {
+                        for(var z = -1; z <= 1; z++) {
+                            if (x == 0 && y == 0 && z == 0) continue;
+                            if (world.g(xpos+x,ypos+y,zpos+z)) num_alive++;
+                        }
+                    }
+                }
+                
+                if( val && num_alive <  2) return false; // Any live cell with fewer than two live neighbours dies, as if caused by under-population.
+                if( val && num_alive <= 3) return true;  // Any live cell with two or three live neighbours lives on to the next generation.
+                if( val && num_alive >  3) return false; // Any live cell with more than three live neighbours dies, as if by overcrowding.
+                if(!val && num_alive == 5) return true;  // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+                else return false;
+            });
+        }
+        
+        
+        setInterval(function() {
+            world.step();
+            world.render();
+        }, 1000 / 30);
+	
+	
+
+	
+</script>
+</body>
+</html>
