@@ -34,7 +34,7 @@
 	var scene = new THREE.Scene();
 
 	// the camera starts at 0,0,0 so pull it back
-	camera.position.z = 50;
+	camera.position.z = 100;
 
 	// start the renderer
 	renderer.setSize(WIDTH, HEIGHT);
@@ -63,9 +63,16 @@
 	pointLight.position.z = 130;
 
 	// add to the scene
-	scene.add(pointLight);
-
+	//scene.add(pointLight);
         
+        var pMaterial = new THREE.PointCloudMaterial({
+            color: 0xFFFFFF,
+            size: 2,
+            transparent: true,
+            opacity: 0.5,
+            fog: false,
+            sizeAttenuation: true
+        });
         
         
         
@@ -78,7 +85,7 @@
         
         
         // create the world
-        var SIDE = 100;
+        var SIDE = Math.pow(100000, 1/3)|0;
         var world = {
             height: SIDE,
             width: SIDE,
@@ -88,62 +95,76 @@
         
         world.each = function(func) {
             for(var x = 0; x < world.width; x++) {
-                world.data[x] = world.data[x] || [];
+                if(world.data[x] === undefined) world.data[x] = [];
                 for(var y = 0; y < world.height; y++) {
-                    world.data[x][y] = world.data[x][y] || [];
+                    if(world.data[x][y] === undefined) world.data[x][y] = [];
                     for(var z = 0; z < world.depth; z++) {
-                        func(world.data[x][y][z], x, y, z);
+                        func(world.g(x,y,z), x, y, z);
                     }
                 }
             }
         }
         world.map = function(func) {
-            return world.each(function(data, x, y, z) {
-                world.data[x][y][z] = func(data, x, y, z);
-            })
+            var newData = [];
+            world.each(function(val, x, y, z) {
+                if(newData[x] === undefined) newData[x] = [];
+                if(newData[x][y] === undefined) newData[x][y] = [];
+                
+                newData[x][y][z] = func(val, x, y, z);
+            });
+            world.data = newData;
         }
         world.g = function(x,y,z) {
-            if (x<0 || x >= world.width  ||
+            /*if (x<0 || x >= world.width  ||
                 y<0 || y >= world.height ||
                 x<0 || z >= world.depth  ) {
                 return false;
+            }*/
+            
+            if (x<0||y<0||z<0) {
+                //console.log(x,y,z);
             }
+            
+            x = (x + world.width) % world.width;
+            y = (y + world.height) % world.height;
+            z = (z + world.depth) % world.depth;
+            
             return world.data[x][y][z];
         }
         
         // initialize world
-        world.map(function() {
-            return (Math.random() >= 0.99);
+        world.map(function(v,x,y,z) {
+            /*if (x == 20 && y == 20 && z == 20) return true;
+            if (x == 20 && y == 21 && z == 20) return true;
+            return false;*/
+            return (Math.random() >= 0.9) ? true : false;
         });
         
         world.__cubes = [];
+        world.__particles = new THREE.Geometry();
         world.render = function() {
             var i = 0;
             world.each(function(data,x,y,z) {
+                
                 if (data === true) {
-                    // recycle cubes
-                    var cube = world.__cubes[i];
-                    
-                    if(!cube) {
-                        cube = new THREE.Mesh(
-                            new THREE.BoxGeometry( 1, 1, 1 ),
-                            sphereMaterial
-                        );
-                        scene.add(cube);
-                        world.__cubes[i] = cube;
+                    var particle = world.__particles.vertices[i];
+                    if (particle == undefined) {
+                        particle = new THREE.Vector3(0,0,0);
+                        world.__particles.vertices[i] = particle;
                     }
-                    
-                    cube.position.x = x - world.width/2;
-                    cube.position.y = y - world.height/2;
-                    cube.position.z = z - world.depth/2;
-                    
+                    particle.x = x-world.width/2;
+                    particle.y = y-world.height/2;
+                    particle.z = z-world.depth;
                     i++;
                 }
             });
             
-            for(;i<world.__cubes.length;i++) {
-                world.__cubes[i].x = -10000000;
+            for(;i<world.__particles.vertices.length;i++) {
+                world.__particles.vertices[i].z = 10000;
             }
+            
+            world.__particles.verticesNeedUpdate = true;
+            
             
             // draw!
             renderer.render(scene, camera);
@@ -154,26 +175,42 @@
                 var num_alive = 0;
                 for(var x = -1; x <= 1; x++) {
                     for(var y = -1; y <= 1; y++) {
-                        for(var z = -1; z <= 1; z++) {
+                        for(var z = 0; z <= 0; z++) {
                             if (x == 0 && y == 0 && z == 0) continue;
-                            if (world.g(xpos+x,ypos+y,zpos+z)) num_alive++;
+                            if (world.g(xpos+x,ypos+y,zpos+z) === true) num_alive++;
                         }
                     }
                 }
                 
-                if( val && num_alive <  2) return false; // Any live cell with fewer than two live neighbours dies, as if caused by under-population.
-                if( val && num_alive <= 3) return true;  // Any live cell with two or three live neighbours lives on to the next generation.
-                if( val && num_alive >  3) return false; // Any live cell with more than three live neighbours dies, as if by overcrowding.
-                if(!val && num_alive == 5) return true;  // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
-                else return false;
+                if(val === true && num_alive <  2) return false; // Any live cell with fewer than two live neighbours dies, as if caused by under-population.
+                if(val === true && num_alive <= 3) return true;  // Any live cell with two or three live neighbours lives on to the next generation.
+                if(val === true && num_alive >  3) return false; // Any live cell with more than three live neighbours dies, as if by overcrowding.
+                if(val === false && num_alive == 3) return true;  // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+                return false;
             });
         }
         
         
-        setInterval(function() {
-            world.step();
+        
+        var particleSystem = new THREE.PointCloud(
+            world.__particles,
+            pMaterial);
+        
+        // add it to the scene
+        scene.add(particleSystem);
+        
+        
+        
+        
+        
+        function gogo() {
+            requestAnimationFrame(gogo);
             world.render();
-        }, 1000 / 30);
+        };
+        gogo();
+        
+        setInterval(world.step, 1000/10);
+        //world.render();
 	
 	
 
