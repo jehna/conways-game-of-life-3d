@@ -103,7 +103,7 @@
                 
                 newData[x][y][z] = func(val, x, y, z);
             });
-            world.data = newData;
+            return newData;
         }
         world.g = function(x,y,z) {
             /*if (x<0 || x >= world.width  ||
@@ -120,7 +120,7 @@
         }
         
         // initialize world
-        world.map(function(v,x,y,z) {
+        world.data = world.map(function(v,x,y,z) {
             /*if (x == 20 && y == 20 && z == 20) return true;
             if (x == 20 && y == 21 && z == 20) return true;
             return false;*/
@@ -160,7 +160,7 @@
         }
         
         world.step = function() {
-            world.map(function(val,xpos,ypos,zpos) {
+            world.data = world.map(function(val,xpos,ypos,zpos) {
                 var num_alive = 0;
                 for(var xx = -1; xx <= 1; xx++) {
                     for(var yy = -1; yy <= 1; yy++) {
