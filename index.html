@@ -41,15 +41,6 @@
 
 	// attach the render-supplied DOM element
 	$container.appendChild(renderer.domElement);
-
-	// create the sphere's material
-	var sphereMaterial = new THREE.MeshLambertMaterial(
-	{
-	    color: 0xCC0000,
-            transparent: true,
-            opacity: 0.5
-	});
-        //sphereMaterial.opacity = 0.5;
         
         // and the camera
 	scene.add(camera);
@@ -69,7 +60,7 @@
             color: 0xFFFFFF,
             size: 2,
             transparent: true,
-            opacity: 0.5,
+            opacity: 0.8,
             fog: false,
             sizeAttenuation: true
         });
@@ -85,7 +76,7 @@
         
         
         // create the world
-        var SIDE = Math.pow(100000, 1/3)|0;
+        var SIDE = Math.pow(50000, 1/3)|0;
         var world = {
             height: SIDE,
             width: SIDE,
@@ -121,10 +112,6 @@
                 return false;
             }*/
             
-            if (x<0||y<0||z<0) {
-                //console.log(x,y,z);
-            }
-            
             x = (x + world.width) % world.width;
             y = (y + world.height) % world.height;
             z = (z + world.depth) % world.depth;
@@ -137,7 +124,7 @@
             /*if (x == 20 && y == 20 && z == 20) return true;
             if (x == 20 && y == 21 && z == 20) return true;
             return false;*/
-            return (Math.random() >= 0.9) ? true : false;
+            return (Math.random() >= 0.6) ? true : false;
         });
         
         world.__cubes = [];
@@ -154,13 +141,15 @@
                     }
                     particle.x = x-world.width/2;
                     particle.y = y-world.height/2;
-                    particle.z = z-world.depth;
+                    particle.z = z-world.depth/2;
                     i++;
                 }
             });
             
-            for(;i<world.__particles.vertices.length;i++) {
-                world.__particles.vertices[i].z = 10000;
+            for(var j = i; j<world.__particles.vertices.length; j++) {
+                world.__particles.vertices[j].z = 100000;
+                world.__particles.vertices[j].y = 0;
+                world.__particles.vertices[j].x = 0;
             }
             
             world.__particles.verticesNeedUpdate = true;
@@ -173,19 +162,19 @@
         world.step = function() {
             world.map(function(val,xpos,ypos,zpos) {
                 var num_alive = 0;
-                for(var x = -1; x <= 1; x++) {
-                    for(var y = -1; y <= 1; y++) {
-                        for(var z = 0; z <= 0; z++) {
-                            if (x == 0 && y == 0 && z == 0) continue;
-                            if (world.g(xpos+x,ypos+y,zpos+z) === true) num_alive++;
+                for(var xx = -1; xx <= 1; xx++) {
+                    for(var yy = -1; yy <= 1; yy++) {
+                        for(var zz = -1; zz <= 1; zz++) {
+                            if (xx == 0 && yy == 0 && zz == 0) continue;
+                            if (world.g(xpos+xx,ypos+yy,zpos+zz) === true) num_alive++;
                         }
                     }
                 }
                 
                 if(val === true && num_alive <  2) return false; // Any live cell with fewer than two live neighbours dies, as if caused by under-population.
-                if(val === true && num_alive <= 3) return true;  // Any live cell with two or three live neighbours lives on to the next generation.
-                if(val === true && num_alive >  3) return false; // Any live cell with more than three live neighbours dies, as if by overcrowding.
-                if(val === false && num_alive == 3) return true;  // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+                if(val === true && num_alive <= 4) return true;  // Any live cell with two or three live neighbours lives on to the next generation.
+                if(val === false && num_alive < 5) return false;  // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+                if(val === false && num_alive <= 5) return true;  // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
                 return false;
             });
         }
@@ -205,11 +194,20 @@
         
         function gogo() {
             requestAnimationFrame(gogo);
+            
+            camera.position.x = 100 * Math.cos( new Date().getTime() / 1000 );
+            camera.position.z = 100 * Math.sin( new Date().getTime() / 1000 );
+            camera.lookAt( new THREE.Vector3(0,0,0) );
+            
             world.render();
         };
         gogo();
         
-        setInterval(world.step, 1000/10);
+        function dodo() {
+            world.step();
+            setTimeout(dodo, 1000/10);
+        }
+        dodo();
         //world.render();
 	
 	
