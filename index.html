@@ -65,27 +65,30 @@
         
         
         
-        INT_SIZE = 8;
+        INT_SIZE = 32;
         
         function DataHolder() {
             var size = Math.ceil((world.width * world.height * world.depth)/INT_SIZE);
-            this.data = new Uint8Array(size);
+            this.data = new Uint32Array(size);
         }
         DataHolder.prototype.s = function(val,x,y,z) {
-            var index = x+(y*world.width)+(z*world.height*world.width);
+            var index = this.index(x,y,z);
             var arrIndex = Math.floor(index/INT_SIZE);
-            var byteIndex = index%INT_SIZE;
+            var byteIndex = index-(arrIndex*INT_SIZE);
             var byteMask = 1 << byteIndex;
             
             this.data[arrIndex] = val ? this.data[arrIndex] | byteMask : this.data[arrIndex] & ~byteMask;
         }
         DataHolder.prototype.g = function(x,y,z) {
-            var index = x+(y*world.width)+(z*world.height*world.width);
+            var index = this.index(x,y,z);
             var arrIndex = Math.floor(index/INT_SIZE);
-            var byteIndex = index%INT_SIZE;
+            var byteIndex = index-(arrIndex*INT_SIZE);
             var byteMask = 1 << byteIndex;
             
             return this.data[arrIndex] & byteMask ? true : false;
+        }
+        DataHolder.prototype.index = function(x,y,z) {
+            return x+(y*world.width)+(z*world.height*world.width);
         }
         
         
@@ -105,7 +108,7 @@
             for(var x = 0; x < world.width; x++) {
                 for(var y = 0; y < world.height; y++) {
                     for(var z = 0; z < world.depth; z++) {
-                        func(world.g(x,y,z), x, y, z);
+                        func(world.data.g(x,y,z), x, y, z);
                     }
                 }
             }
@@ -116,9 +119,6 @@
                 newData.s(func(val, x, y, z), x, y, z);
             });
             return newData;
-        }
-        world.g = function(x,y,z) {
-            return world.data.g(x,y,z);
         }
         
         // initialize world
@@ -169,7 +169,7 @@
                     for(var yy = -1; yy <= 1; yy++) {
                         for(var zz = -1; zz <= 1; zz++) {
                             if (xx == 0 && yy == 0 && zz == 0) continue;
-                            if (world.g(xpos+xx,ypos+yy,zpos+zz) === true) num_alive++;
+                            if (world.data.g(xpos+xx,ypos+yy,zpos+zz) === true) num_alive++;
                         }
                     }
                 }
@@ -210,7 +210,7 @@
         
         function dodo() {
             world.step();
-            setTimeout(dodo, 1000/10);
+            setTimeout(dodo, 1000/30);
         }
         dodo();
         //world.render();
