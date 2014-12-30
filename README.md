@@ -10,7 +10,7 @@ You can find an example at a local tilde.club server:
 http://palvelin.club/~jehna/game-of-life-3d/
 
 Here's a screenshot of an example game:
-<img src="http://i.imgur.com/AJwUlrd.png" alt="example image">
+<img src="http://i.imgur.com/QTbhNDX.gif" alt="example image">
 
 ## Additional info
 
