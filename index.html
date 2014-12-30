@@ -65,33 +65,27 @@
         
         
         
-        
+        INT_SIZE = 8;
         
         function DataHolder() {
-            this.data = [];
+            var size = Math.ceil((world.width * world.height * world.depth)/INT_SIZE);
+            this.data = new Uint8Array(size);
         }
         DataHolder.prototype.s = function(val,x,y,z) {
-            if(this.data[x] === undefined) this.data[x] = [];
-            if(this.data[x][y] === undefined) this.data[x][y] = [];
+            var index = x+(y*world.width)+(z*world.height*world.width);
+            var arrIndex = Math.floor(index/INT_SIZE);
+            var byteIndex = index%INT_SIZE;
+            var byteMask = 1 << byteIndex;
             
-            this.data[x][y][z] = val;
+            this.data[arrIndex] = val ? this.data[arrIndex] | byteMask : this.data[arrIndex] & ~byteMask;
         }
         DataHolder.prototype.g = function(x,y,z) {
-            /*if (x<0 || x >= world.width  ||
-                y<0 || y >= world.height ||
-                x<0 || z >= world.depth  ) {
-                return false;
-            }*/
+            var index = x+(y*world.width)+(z*world.height*world.width);
+            var arrIndex = Math.floor(index/INT_SIZE);
+            var byteIndex = index%INT_SIZE;
+            var byteMask = 1 << byteIndex;
             
-            x = (x + world.width) % world.width;
-            y = (y + world.height) % world.height;
-            z = (z + world.depth) % world.depth;
-            
-            try {
-                return this.data[x][y][z];
-            } catch(e) {}
-            
-            return false;
+            return this.data[arrIndex] & byteMask ? true : false;
         }
         
         
@@ -102,9 +96,10 @@
         var world = {
             height: SIDE,
             width: SIDE,
-            depth: SIDE,
-            data: new DataHolder()
+            depth: SIDE
         };
+        
+        world.data = new DataHolder();
         
         world.each = function(func) {
             for(var x = 0; x < world.width; x++) {
@@ -167,7 +162,7 @@
             world.__particles.vertices.splice(i,world.__particles.vertices.length-i);
         }
         
-        world.step = function() {
+        var worldstep = function() {
             world.data = world.map(function(val,xpos,ypos,zpos) {
                 var num_alive = 0;
                 for(var xx = -1; xx <= 1; xx++) {
@@ -186,6 +181,7 @@
                 return false;
             });
         }
+        world.step = worldstep;
         
         
         
@@ -199,13 +195,14 @@
         
         
         
-        
+        var center_point = new THREE.Vector3(0,0,0)
         function gogo() {
             requestAnimationFrame(gogo);
+            var ctime = new Date().getTime() / 1000;
             
-            camera.position.x = 100 * Math.cos( new Date().getTime() / 1000 );
-            camera.position.z = 100 * Math.sin( new Date().getTime() / 1000 );
-            camera.lookAt( new THREE.Vector3(0,0,0) );
+            camera.position.x = 100 * Math.cos( ctime );
+            camera.position.z = 100 * Math.sin( ctime );
+            camera.lookAt( center_point );
             
             world.render();
         };
