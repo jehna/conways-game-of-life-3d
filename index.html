@@ -67,42 +67,16 @@
         
         
         
-        
-        
-        
-        
-        
-        // create the world
-        var SIDE = Math.pow(100000, 1/3)|0;
-        var world = {
-            height: SIDE,
-            width: SIDE,
-            depth: SIDE,
-            data: []
-        };
-        
-        world.each = function(func) {
-            for(var x = 0; x < world.width; x++) {
-                if(world.data[x] === undefined) world.data[x] = [];
-                for(var y = 0; y < world.height; y++) {
-                    if(world.data[x][y] === undefined) world.data[x][y] = [];
-                    for(var z = 0; z < world.depth; z++) {
-                        func(world.g(x,y,z), x, y, z);
-                    }
-                }
-            }
+        function DataHolder() {
+            this.data = [];
         }
-        world.map = function(func) {
-            var newData = [];
-            world.each(function(val, x, y, z) {
-                if(newData[x] === undefined) newData[x] = [];
-                if(newData[x][y] === undefined) newData[x][y] = [];
-                
-                newData[x][y][z] = func(val, x, y, z);
-            });
-            return newData;
+        DataHolder.prototype.s = function(val,x,y,z) {
+            if(this.data[x] === undefined) this.data[x] = [];
+            if(this.data[x][y] === undefined) this.data[x][y] = [];
+            
+            this.data[x][y][z] = val;
         }
-        world.g = function(x,y,z) {
+        DataHolder.prototype.g = function(x,y,z) {
             /*if (x<0 || x >= world.width  ||
                 y<0 || y >= world.height ||
                 x<0 || z >= world.depth  ) {
@@ -113,7 +87,43 @@
             y = (y + world.height) % world.height;
             z = (z + world.depth) % world.depth;
             
-            return world.data[x][y][z];
+            try {
+                return this.data[x][y][z];
+            } catch(e) {}
+            
+            return false;
+        }
+        
+        
+        
+        
+        // create the world
+        var SIDE = Math.pow(100000, 1/3)|0;
+        var world = {
+            height: SIDE,
+            width: SIDE,
+            depth: SIDE,
+            data: new DataHolder()
+        };
+        
+        world.each = function(func) {
+            for(var x = 0; x < world.width; x++) {
+                for(var y = 0; y < world.height; y++) {
+                    for(var z = 0; z < world.depth; z++) {
+                        func(world.g(x,y,z), x, y, z);
+                    }
+                }
+            }
+        }
+        world.map = function(func) {
+            var newData = new DataHolder();
+            world.each(function(val, x, y, z) {
+                newData.s(func(val, x, y, z), x, y, z);
+            });
+            return newData;
+        }
+        world.g = function(x,y,z) {
+            return world.data.g(x,y,z);
         }
         
         // initialize world
