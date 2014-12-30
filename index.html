@@ -2,7 +2,14 @@
 <html>
 <head>
     <title>Game of death</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script type="text/javascript" src="js/three.min.js"></script>
+    <style>
+        body, html, canvas, div {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
 </head>
 
 <body>
@@ -11,8 +18,8 @@
 <script>
 
 	// set the scene size
-	var WIDTH = 800,
-	    HEIGHT = 600;
+	var WIDTH = window.innerWidth,
+	    HEIGHT = window.innerHeight;
 
 	// set some camera attributes
 	var VIEW_ANGLE = 45,
@@ -27,6 +34,7 @@
 	// create a WebGL renderer, camera
 	// and a scene
 	var renderer = new THREE.WebGLRenderer();
+        renderer.setClearColor(0xFFFFFF, 1);
 	var camera = new THREE.PerspectiveCamera(  VIEW_ANGLE,
 	                                ASPECT,
 	                                NEAR,
@@ -45,22 +53,11 @@
         // and the camera
 	scene.add(camera);
         
-        // create a point light
-	var pointLight = new THREE.PointLight( 0xFFFFFF );
-
-	// set its position
-	pointLight.position.x = 10;
-	pointLight.position.y = 50;
-	pointLight.position.z = 130;
-
-	// add to the scene
-	//scene.add(pointLight);
-        
         var pMaterial = new THREE.PointCloudMaterial({
-            color: 0xFFFFFF,
+            color: 0x000000,
             size: 2,
             transparent: true,
-            opacity: 0.8,
+            opacity: 0.5,
             fog: false,
             sizeAttenuation: true
         });
@@ -157,6 +154,7 @@
             
             // draw!
             renderer.render(scene, camera);
+            world.__particles.vertices.splice(i,world.__particles.vertices.length-i);
         }
         
         world.step = function() {
