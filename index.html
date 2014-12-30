@@ -9,14 +9,30 @@
             margin: 0;
             padding: 0;
         }
+        label {
+            display: block;
+        }
     </style>
 </head>
 
 <body>
+<div style="position: absolute; top: 0; left: 0;">
+<label>
+    Number of particles:
+    <select id="numPartcles" onchange="startOver()">
+        <option value="1000">1 000 (small)</option>
+        <option value="10000">10 000 (medium)</option>
+        <option value="100000">100 000 (huge)</option>
+        <option value="500000">500 000 (oblivious)</option>
+    </select>
+</label>
+<button onclick="startOver()">Refresh</button>
+</div>
 <div id="container"></div>
 
 <script>
-
+        
+        
 	// set the scene size
 	var WIDTH = window.innerWidth,
 	    HEIGHT = window.innerHeight;
@@ -24,7 +40,7 @@
 	// set some camera attributes
 	var VIEW_ANGLE = 45,
 	    ASPECT = WIDTH / HEIGHT,
-	    NEAR = 0.1,
+	    NEAR = 0.01,
 	    FAR = 10000;
 
 	// get the DOM element to attach to
@@ -41,9 +57,6 @@
 	                                FAR  );
 	var scene = new THREE.Scene();
 
-	// the camera starts at 0,0,0 so pull it back
-	camera.position.z = 100;
-
 	// start the renderer
 	renderer.setSize(WIDTH, HEIGHT);
 
@@ -55,7 +68,7 @@
         
         var pMaterial = new THREE.PointCloudMaterial({
             color: 0x000000,
-            size: 2,
+            size: 2.5,
             transparent: true,
             opacity: 0.5,
             fog: false,
@@ -67,8 +80,12 @@
         
         INT_SIZE = 32;
         
-        function DataHolder() {
-            var size = Math.ceil((world.width * world.height * world.depth)/INT_SIZE);
+        function DataHolder(world) {
+            this.width = world.width;
+            this.height = world.height;
+            this.depth = world.depth;
+            
+            var size = Math.ceil((this.width * this.height * this.depth)/INT_SIZE);
             this.data = new Uint32Array(size);
         }
         DataHolder.prototype.s = function(val,x,y,z) {
@@ -88,88 +105,87 @@
             return this.data[arrIndex] & byteMask ? true : false;
         }
         DataHolder.prototype.index = function(x,y,z) {
-            return x+(y*world.width)+(z*world.height*world.width);
+            return x+(y*this.width)+(z*this.height*this.width);
         }
         
         
         
         
-        // create the world
-        var SIDE = Math.pow(100000, 1/3)|0;
-        var world = {
-            height: SIDE,
-            width: SIDE,
-            depth: SIDE
-        };
+        function World(size) {
+            var SIDE = Math.pow(size, 1/3)|0;
+            this.height = SIDE;
+            this.width = SIDE;
+            this.depth = SIDE;
+            
+            CAMERA_FAR = SIDE*2;
+            
+            this.data = new DataHolder(this);
+            
+            // initialize world data
+            this.data = this.map(function(v,x,y,z) {
+                return (Math.random() >= 0.6) ? true : false;
+            });
+            
+            this.__particles = new THREE.Geometry();
+        }
         
-        world.data = new DataHolder();
-        
-        world.each = function(func) {
-            for(var x = 0; x < world.width; x++) {
-                for(var y = 0; y < world.height; y++) {
-                    for(var z = 0; z < world.depth; z++) {
-                        func(world.data.g(x,y,z), x, y, z);
+        World.prototype.each = function(func) {
+            for(var x = 0; x < this.width; x++) {
+                for(var y = 0; y < this.height; y++) {
+                    for(var z = 0; z < this.depth; z++) {
+                        func.call(this, this.data.g(x,y,z), x, y, z);
                     }
                 }
             }
         }
-        world.map = function(func) {
-            var newData = new DataHolder();
-            world.each(function(val, x, y, z) {
-                newData.s(func(val, x, y, z), x, y, z);
+        
+        World.prototype.map = function(func) {
+            var newData = new DataHolder(this);
+            this.each(function(val, x, y, z) {
+                newData.s(func.call(this, val, x, y, z), x, y, z);
             });
             return newData;
         }
         
-        // initialize world
-        world.data = world.map(function(v,x,y,z) {
-            /*if (x == 20 && y == 20 && z == 20) return true;
-            if (x == 20 && y == 21 && z == 20) return true;
-            return false;*/
-            return (Math.random() >= 0.6) ? true : false;
-        });
-        
-        world.__cubes = [];
-        world.__particles = new THREE.Geometry();
-        world.render = function() {
+        World.prototype.render = function() {
             var i = 0;
-            world.each(function(data,x,y,z) {
+            this.each(function(data,x,y,z) {
                 
                 if (data === true) {
-                    var particle = world.__particles.vertices[i];
+                    var particle = this.__particles.vertices[i];
                     if (particle == undefined) {
                         particle = new THREE.Vector3(0,0,0);
-                        world.__particles.vertices[i] = particle;
+                        this.__particles.vertices[i] = particle;
                     }
-                    particle.x = x-world.width/2;
-                    particle.y = y-world.height/2;
-                    particle.z = z-world.depth/2;
+                    particle.x = x-this.width/2;
+                    particle.y = y-this.height/2;
+                    particle.z = z-this.depth/2;
                     i++;
                 }
             });
             
-            for(var j = i; j<world.__particles.vertices.length; j++) {
-                world.__particles.vertices[j].z = 100000;
-                world.__particles.vertices[j].y = 0;
-                world.__particles.vertices[j].x = 0;
+            for(var j = i; j<this.__particles.vertices.length; j++) {
+                this.__particles.vertices[j].z = 100000;
+                this.__particles.vertices[j].y = 0;
+                this.__particles.vertices[j].x = 0;
             }
             
-            world.__particles.verticesNeedUpdate = true;
+            this.__particles.verticesNeedUpdate = true;
             
             
             // draw!
             renderer.render(scene, camera);
-            world.__particles.vertices.splice(i,world.__particles.vertices.length-i);
+            this.__particles.vertices.splice(i,this.__particles.vertices.length-i);
         }
         
-        var worldstep = function() {
-            world.data = world.map(function(val,xpos,ypos,zpos) {
+        World.prototype.step = function() {
+            this.data = this.map(function(val,xpos,ypos,zpos) {
                 var num_alive = 0;
                 for(var xx = -1; xx <= 1; xx++) {
                     for(var yy = -1; yy <= 1; yy++) {
                         for(var zz = -1; zz <= 1; zz++) {
                             if (xx == 0 && yy == 0 && zz == 0) continue;
-                            if (world.data.g(xpos+xx,ypos+yy,zpos+zz) === true) num_alive++;
+                            if (this.data.g(xpos+xx,ypos+yy,zpos+zz) === true) num_alive++;
                         }
                     }
                 }
@@ -181,42 +197,76 @@
                 return false;
             });
         }
-        world.step = worldstep;
-        
-        
-        
-        var particleSystem = new THREE.PointCloud(
-            world.__particles,
-            pMaterial);
-        
-        // add it to the scene
-        scene.add(particleSystem);
         
         
         
         
-        var center_point = new THREE.Vector3(0,0,0)
+        
+        
+        
+        
+        
+        
+        var world;
+        var center_point = new THREE.Vector3(0,0,0);
+        var CAMERA_FAR = 100;
+        
         function gogo() {
+            if (paused) return;
+            
             requestAnimationFrame(gogo);
             var ctime = new Date().getTime() / 1000;
             
-            camera.position.x = 100 * Math.cos( ctime );
-            camera.position.z = 100 * Math.sin( ctime );
+            camera.position.x = CAMERA_FAR * Math.cos( ctime );
+            camera.position.z = CAMERA_FAR * Math.sin( ctime );
             camera.lookAt( center_point );
             
             world.render();
         };
-        gogo();
         
+        
+        
+        var particleSystem;
+        var paused = true;
+        var currentTimeout;
         function dodo() {
+            if (paused) return;
             world.step();
-            setTimeout(dodo, 1000/30);
+            currentTimeout = setTimeout(dodo, 1000/10);
         }
-        dodo();
-        //world.render();
 	
-	
-
+	function run() {
+            paused = false;
+            gogo();
+            dodo();
+        }
+        
+        function stop() {
+            clearTimeout(currentTimeout);
+            paused = true;
+        }
+        
+        function startOver() {
+            stop();
+            if (particleSystem) {
+                scene.remove(particleSystem);
+            }
+            
+            var numParticles = parseInt(document.getElementById("numPartcles").value);
+            world = new World(numParticles);
+            
+        
+            particleSystem = new THREE.PointCloud(
+                world.__particles,
+                pMaterial);
+            
+            // add it to the scene
+            scene.add(particleSystem);
+            //setTimeout(run, 10000);
+            world.render();
+            run();
+        }
+        startOver();
 	
 </script>
 </body>
