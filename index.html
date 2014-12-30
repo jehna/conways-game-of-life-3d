@@ -4,6 +4,7 @@
     <title>Game of death</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script type="text/javascript" src="js/three.min.js"></script>
+    <script type="text/javascript" src="js/multithread.js"></script>
     <style>
         body, html, canvas, div {
             margin: 0;
@@ -21,7 +22,7 @@
     Number of particles:
     <select id="numPartcles" onchange="startOver()">
         <option value="1000">1 000 (small)</option>
-        <option value="10000">10 000 (medium)</option>
+        <option value="10000" selected>10 000 (medium)</option>
         <option value="100000">100 000 (huge)</option>
         <option value="500000">500 000 (oblivious)</option>
     </select>
@@ -85,27 +86,25 @@
             this.height = world.height;
             this.depth = world.depth;
             
-            var size = Math.ceil((this.width * this.height * this.depth)/INT_SIZE);
-            this.data = new Uint32Array(size);
+            this.data = [];
         }
         DataHolder.prototype.s = function(val,x,y,z) {
-            var index = this.index(x,y,z);
-            var arrIndex = Math.floor(index/INT_SIZE);
-            var byteIndex = index-(arrIndex*INT_SIZE);
-            var byteMask = 1 << byteIndex;
+            if(this.data[x] === undefined) this.data[x] = [];
+            if(this.data[x][y] === undefined) this.data[x][y] = [];
             
-            this.data[arrIndex] = val ? this.data[arrIndex] | byteMask : this.data[arrIndex] & ~byteMask;
+            this.data[x][y][z] = val;
         }
         DataHolder.prototype.g = function(x,y,z) {
-            var index = this.index(x,y,z);
-            var arrIndex = Math.floor(index/INT_SIZE);
-            var byteIndex = index-(arrIndex*INT_SIZE);
-            var byteMask = 1 << byteIndex;
             
-            return this.data[arrIndex] & byteMask ? true : false;
-        }
-        DataHolder.prototype.index = function(x,y,z) {
-            return x+(y*this.width)+(z*this.height*this.width);
+            x = (x + this.width) % this.width;
+            y = (y + this.height) % this.height;
+            z = (z + this.depth) % this.depth;
+            
+            try {
+                return this.data[x][y][z];
+            } catch(e) {}
+            
+            return false;
         }
         
         
@@ -229,10 +228,90 @@
         var particleSystem;
         var paused = true;
         var currentTimeout;
+        var MT = new Multithread(2);
+        
+        
+        function dododo(dataArr, width, height, depth) {
+            function DataHolder() {
+                this.width = width;
+                this.height = height;
+                this.depth = depth;
+                
+                this.data = [];
+            }
+            DataHolder.prototype.s = function(val,x,y,z) {
+                if(this.data[x] === undefined) this.data[x] = [];
+                if(this.data[x][y] === undefined) this.data[x][y] = [];
+                
+                this.data[x][y][z] = val;
+            }
+            DataHolder.prototype.g = function(x,y,z) {
+                
+                x = (x + this.width) % this.width;
+                y = (y + this.height) % this.height;
+                z = (z + this.depth) % this.depth;
+                
+                try {
+                    return this.data[x][y][z];
+                } catch(e) {}
+                
+                return false;
+            }
+            
+            var dataHolder = new DataHolder();
+            dataHolder.data = dataArr;
+            
+            function each(data, func) {
+                for(var x = 0; x < width; x++) {
+                    for(var y = 0; y < height; y++) {
+                        for(var z = 0; z < depth; z++) {
+                            func(data.g(x,y,z), x, y, z);
+                        }
+                    }
+                }
+            }
+            
+            function map(data, func) {
+                var newData = new DataHolder();
+                each(data, function(val, x, y, z) {
+                    newData.s(func(val, x, y, z), x, y, z);
+                });
+                return newData;
+            }
+            
+            
+            
+            var newData = map(dataHolder, function(val,xpos,ypos,zpos) {
+                var num_alive = 0;
+                for(var xx = -1; xx <= 1; xx++) {
+                    for(var yy = -1; yy <= 1; yy++) {
+                        for(var zz = -1; zz <= 1; zz++) {
+                            if (xx == 0 && yy == 0 && zz == 0) continue;
+                            if (dataHolder.g(xpos+xx,ypos+yy,zpos+zz) === true) num_alive++;
+                        }
+                    }
+                }
+                
+                if(val === true && num_alive <  2) return false; // Any live cell with fewer than two live neighbours dies, as if caused by under-population.
+                if(val === true && num_alive <= 4) return true;  // Any live cell with two or three live neighbours lives on to the next generation.
+                if(val === false && num_alive < 5) return false;  // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+                if(val === false && num_alive <= 5) return true;  // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+                return false;
+            });
+            
+            return newData.data;
+        
+        }
+        
+        
         function dodo() {
             if (paused) return;
-            world.step();
-            currentTimeout = setTimeout(dodo, 1000/10);
+            MT.process(dododo, function(data) {
+                world.data.data = data;
+                currentTimeout = setTimeout(dodo, 1000/10);
+            })(world.data.data, world.width, world.height, world.depth);
+            
+            //currentTimeout = setTimeout(dodo, 1000/10);
         }
 	
 	function run() {
