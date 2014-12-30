@@ -26,5 +26,8 @@ Contributions are warmly welcome via pull requests.
 
 Please open an issue beforehand and use feature branches.
 
+### Thank you
+A special thank you for forcing me to actually code this to [lehtu](https://github.com/lehtu)
+
 ## License
 The work is licensed under MIT license
